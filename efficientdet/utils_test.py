@@ -67,6 +67,8 @@ class UtilsTest(tf.test.TestCase):
     self.assertEqual(utils.parse_image_size('1280x640'), (640, 1280))
     self.assertEqual(utils.parse_image_size(1280), (1280, 1280))
     self.assertEqual(utils.parse_image_size((1280, 640)), (1280, 640))
+    self.assertEqual(utils.parse_image_size({'width': 640, 'height': 1280}), (1280, 640))
+    self.assertEqual(utils.parse_image_size({'height': 3744, 'width': 5616}), (3744, 5616))
 
   def test_get_feat_sizes(self):
     feats = utils.get_feat_sizes(640, 2)
