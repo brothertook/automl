@@ -15,7 +15,7 @@
 """Common utils."""
 import contextlib
 import os
-from typing import Text, Tuple, Union
+from typing import Text, Tuple, Union, Dict
 from absl import logging
 import numpy as np
 import tensorflow.compat.v1 as tf
@@ -482,11 +482,12 @@ def archive_ckpt(ckpt_eval, ckpt_objective, ckpt_path):
   return True
 
 
-def parse_image_size(image_size: Union[Text, int, Tuple[int, int]]):
+def parse_image_size(image_size: Union[Text, int, Tuple[int, int], Dict[int, int]]):
   """Parse the image size and return (height, width).
 
   Args:
     image_size: A integer, a tuple (H, W), or a string with HxW format.
+    or a dict with keys 'height' and 'width' with corresponding int values.
 
   Returns:
     A tuple of integer (height, width).
@@ -502,7 +503,10 @@ def parse_image_size(image_size: Union[Text, int, Tuple[int, int]]):
 
   if isinstance(image_size, tuple):
     return image_size
-
+  
+  if isinstance(image_size, dict):
+    return (image_size['height'], image_size['width'])
+  
   raise ValueError('image_size must be an int, WxH string, or (height, width)'
                    'tuple. Was %r' % image_size)
 
