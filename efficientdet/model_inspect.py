@@ -25,6 +25,7 @@ import numpy as np
 from PIL import Image
 import tensorflow.compat.v1 as tf
 
+import json
 import hparams_config
 import inference
 import utils
@@ -188,6 +189,44 @@ class ModelInspector(object):
         Image.fromarray(img).save(output_image_path)
         print('writing file to %s' % output_image_path)
 
+  def saved_model_inference_label(self, image_path_pattern, output_dir, **kwargs):
+    """Perform inference for the given saved model."""
+    driver = inference.ServingDriver(
+        self.model_name,
+        self.ckpt_path,
+        batch_size=self.batch_size,
+        use_xla=self.use_xla,
+        model_params=self.model_config.as_dict(),
+        **kwargs)
+    driver.load(self.saved_model_dir)
+
+    # Serving time batch size should be fixed.
+    batch_size = self.batch_size or 1
+    all_files = list(tf.io.gfile.glob(image_path_pattern))
+    print('all_files=', all_files)
+    num_batches = (len(all_files) + batch_size - 1) // batch_size
+
+    for i in range(num_batches):
+      batch_files = all_files[i * batch_size:(i + 1) * batch_size]
+      height, width = self.model_config.image_size
+      images = [Image.open(f) for f in batch_files]
+      if len(set([m.size for m in images])) > 1:
+        # Resize only if images in the same batch have different sizes.
+        images = [m.resize(height, width) for m in images]
+      raw_images = [np.array(m) for m in images]
+      size_before_pad = len(raw_images)
+      if size_before_pad < batch_size:
+        padding_size = batch_size - size_before_pad
+        raw_images += [np.zeros_like(raw_images[0])] * padding_size
+
+      detections_bs = driver.serve_images(raw_images)
+      for j in range(size_before_pad):
+        img_id = batch_files[j]
+        output_image_path = os.path.join(output_dir, img_id + '.json')
+        with open(output_image_path,"w") as fp:
+            json.dump(detections_bs[j],fp)
+        print('writing file to %s' % output_image_path)
+        
   def saved_model_benchmark(self,
                             image_path_pattern,
                             trace_filename=None,
@@ -466,6 +505,11 @@ class ModelInspector(object):
       elif runmode == 'saved_model_infer':
         self.saved_model_inference(kwargs['input_image'],
                                    kwargs['output_image_dir'], **config_dict)
+
+      elif runmode == 'saved_model_inference_label':
+        self.saved_model_inference(kwargs['input_image'],
+                                   kwargs['output_image_dir'], **config_dict)
+        
       elif runmode == 'saved_model_video':
         self.saved_model_video(kwargs['input_video'], kwargs['output_video'],
                                **config_dict)
