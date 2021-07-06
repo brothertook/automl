@@ -203,7 +203,8 @@ class ModelInspector(object):
     # Serving time batch size should be fixed.
     batch_size = self.batch_size or 1
     all_files = list(tf.io.gfile.glob(image_path_pattern))
-    print('all_files=', all_files)
+    print('all_files_count=', len(all_files))
+    src_root = os.path.commonpath(all_files)
     num_batches = (len(all_files) + batch_size - 1) // batch_size
 
     for i in range(num_batches):
@@ -221,11 +222,14 @@ class ModelInspector(object):
 
       detections_bs = driver.serve_images(raw_images)
       for j in range(size_before_pad):
-        img_id = batch_files[j]
-        output_image_path = os.path.join(output_dir, img_id + '.json')
+        img_path = os.path.join(output_dir, os.path.dirname(os.path.relpath(batch_files[j],src_root)))
+        os.makedirs(img_path,exist_ok=True)
+        img_id = os.path.basename(batch_files[j])
+        output_image_path = os.path.join(img_path, img_id+'.json')
         with open(output_image_path,"w") as fp:
-            json.dump(detections_bs[j],fp)
-        print('writing file to %s' % output_image_path)
+            json.dump(detections_bs[j].tolist(),fp)
+            
+      print('Batch {} from {}'.format(i,num_batches))
         
   def saved_model_benchmark(self,
                             image_path_pattern,
@@ -487,7 +491,7 @@ class ModelInspector(object):
       self.saved_model_benchmark(
           kwargs['input_image'],
           trace_filename=kwargs.get('trace_filename', None))
-    elif runmode in ('infer', 'saved_model', 'saved_model_infer',
+    elif runmode in ('infer', 'saved_model', 'saved_model_infer', 'saved_model_inference_label',
                      'saved_model_video'):
       config_dict = {}
       if kwargs.get('line_thickness', None):
@@ -507,7 +511,7 @@ class ModelInspector(object):
                                    kwargs['output_image_dir'], **config_dict)
 
       elif runmode == 'saved_model_inference_label':
-        self.saved_model_inference(kwargs['input_image'],
+        self.saved_model_inference_label(kwargs['input_image'],
                                    kwargs['output_image_dir'], **config_dict)
         
       elif runmode == 'saved_model_video':

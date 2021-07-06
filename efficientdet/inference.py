@@ -640,8 +640,7 @@ class ServingDriver(object):
           None,
           precision_mode=tensorrt,
           input_saved_model_dir=output_dir,
-          output_saved_model_dir=trt_path,
-          session_config=sess_config)
+          output_saved_model_dir=trt_path)
       logging.info('TensorRT model is saved at %s', trt_path)
 
 
